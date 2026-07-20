@@ -23,6 +23,34 @@
 				v-safe-html:rich="assignment.data.question"
 				class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal"
 			></div>
+			<div
+				v-if="assignmentAttachments.length"
+				class="mt-5 border rounded-lg p-3 bg-surface-gray-1"
+			>
+				<div class="font-semibold text-ink-gray-9 mb-3">
+					{{ __('Assignment Attachments') }}
+				</div>
+				<div class="space-y-3">
+					<div
+						v-for="file in assignmentAttachments"
+						:key="file.url"
+						class="border rounded-md p-3 bg-surface-white"
+					>
+						<a
+							:href="file.url"
+							target="_blank"
+							class="text-sm font-medium text-ink-blue-5 !no-underline"
+						>
+							{{ file.name }}
+						</a>
+						<img
+							v-if="file.isImage"
+							:src="file.url"
+							class="mt-3 max-h-80 rounded border object-contain bg-surface-gray-2"
+						/>
+					</div>
+				</div>
+			</div>
 		</div>
 
 		<div class="flex flex-col overflow-y-auto">
@@ -172,6 +200,49 @@
 					></div>
 				</div>
 
+				<div
+					v-if="studentFeedbackVisible"
+					class="mt-8 p-3 border rounded-lg bg-surface-gray-2"
+				>
+					<div class="font-semibold text-ink-gray-9 mb-3">
+						{{ __('Teacher Feedback') }}
+					</div>
+					<div
+						v-if="submissionResource.doc?.custom_almadrasa_grade"
+						class="text-sm text-ink-gray-8 mb-3"
+					>
+						{{ __('Grade') }}: {{ submissionResource.doc.custom_almadrasa_grade }}
+					</div>
+					<div
+						v-if="submissionResource.doc?.custom_almadrasa_teacher_comment"
+						class="leading-6 text-ink-gray-9 mb-4"
+						v-html="sanitizeRichHTML(submissionResource.doc.custom_almadrasa_teacher_comment)"
+					></div>
+					<div v-if="correctedAttachments.length" class="space-y-3">
+						<div class="text-ink-gray-5">
+							{{ __('Corrected Attachments') }}
+						</div>
+						<div
+							v-for="file in correctedAttachments"
+							:key="file.url"
+							class="border rounded-md p-3 bg-surface-white"
+						>
+							<a
+								:href="file.url"
+								target="_blank"
+								class="text-sm font-medium text-ink-blue-5 !no-underline"
+							>
+								{{ file.name }}
+							</a>
+							<img
+								v-if="file.isImage"
+								:src="file.url"
+								class="mt-3 max-h-80 rounded border object-contain bg-surface-gray-2"
+							/>
+						</div>
+					</div>
+				</div>
+
 				<!-- Grading -->
 				<div v-if="canGradeSubmission" class="mt-8 space-y-4">
 					<div class="font-semibold mb-2 text-ink-gray-9">
@@ -237,6 +308,39 @@ const comments = ref(null)
 const router = useRouter()
 const user = inject('$user')
 const isDirty = ref(false)
+
+const normalizeAttachmentUrl = (url) => {
+	if (!url) return null
+	if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
+	return url
+}
+
+const decodeAlmadrasaAttachments = (raw) => {
+	if (!raw) return []
+	let value = raw
+	if (typeof value == 'string') {
+		try {
+			value = JSON.parse(value)
+		} catch (e) {
+			value = [value]
+		}
+	}
+	if (!Array.isArray(value)) value = [value]
+	return value
+		.map((item, index) => {
+			const data = typeof item == 'string' ? { url: item } : item || {}
+			const url = normalizeAttachmentUrl(data.url || data.file_url || data.data_url)
+			if (!url) return null
+			const name = data.name || data.file_name || `Attachment ${index + 1}`
+			const mime = data.mime_type || data.mime || ''
+			const isImage =
+				mime.startsWith('image/') ||
+				url.startsWith('data:image/') ||
+				/\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url)
+			return { name, url, isImage }
+		})
+		.filter(Boolean)
+}
 
 const props = defineProps({
 	assignmentID: {
@@ -457,6 +561,27 @@ const submissionStatusOptions = computed(() => {
 		{ label: 'Pass', value: 'Pass' },
 		{ label: 'Fail', value: 'Fail' },
 	]
+})
+
+
+const assignmentAttachments = computed(() =>
+	decodeAlmadrasaAttachments(assignment.data?.custom_almadrasa_attachments)
+)
+
+const correctedAttachments = computed(() =>
+	decodeAlmadrasaAttachments(
+		submissionResource.doc?.custom_almadrasa_corrected_attachments
+	)
+)
+
+const studentFeedbackVisible = computed(() => {
+	const doc = submissionResource.doc
+	return !!(
+		doc &&
+		(doc.custom_almadrasa_grade ||
+			doc.custom_almadrasa_teacher_comment ||
+			correctedAttachments.value.length)
+	)
 })
 
 const statusTheme = computed(() => {
