@@ -598,6 +598,10 @@ const conferencingOptions = computed(() => {
 			label: __('Google Meet'),
 			value: 'Google Meet',
 		},
+		{
+			label: __('LiveKit'),
+			value: 'LiveKit',
+		},
 	]
 })
 

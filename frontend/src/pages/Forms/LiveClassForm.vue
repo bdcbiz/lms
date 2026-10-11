@@ -151,6 +151,8 @@ const isAdmin = computed(() =>
 // lms_batch.create_live_class is.
 const hasProviderAccount = computed(() => {
 	const data = batch.data
+	// edu_hub: LiveKit needs no account.
+	if (data?.conferencing_provider === 'LiveKit') return true
 	if (data?.conferencing_provider === 'Zoom' && data?.zoom_account) return true
 	if (
 		data?.conferencing_provider === 'Google Meet' &&
@@ -164,6 +166,9 @@ const refusal = computed(() => {
 	if (readOnlyMode) return __('This site is in read-only mode.')
 	if (!isAdmin.value)
 		return __('You are not permitted to create a live class for this batch.')
+	// edu_hub: LiveKit sessions are synced server-side, never created from here.
+	if (conferencingProvider.value === 'LiveKit')
+		return __('Live classes for LiveKit batches are created automatically.')
 	if (!hasProviderAccount.value)
 		return __(
 			'Please select a conferencing provider and add an account to the batch to create live classes.'

@@ -178,6 +178,8 @@ const openLiveClassForm = () => {
 
 const hasProviderAccount = () => {
 	const data = props.batch.data
+	// edu_hub: LiveKit needs no account; sessions are synced server-side.
+	if (data?.conferencing_provider === 'LiveKit') return true
 	if (data?.conferencing_provider === 'Zoom' && data?.zoom_account) return true
 	if (
 		data?.conferencing_provider === 'Google Meet' &&
@@ -189,6 +191,9 @@ const hasProviderAccount = () => {
 
 const canCreateClass = () => {
 	if (readOnlyMode) return false
+	// edu_hub: LiveKit classes are not created from LMS (the Zoom/Meet and Google
+	// Calendar after_insert would throw), so no Add button for them.
+	if (props.batch.data?.conferencing_provider === 'LiveKit') return false
 	if (!hasProviderAccount()) return false
 	return isAdmin()
 }
