@@ -94,7 +94,6 @@ declare module 'vue' {
     LockedLessonNotice: typeof import('./src/components/LockedLessonNotice.vue')['default']
     LucideChevronLeft: typeof import('~icons/lucide/chevron-left')['default']
     LucideChevronRight: typeof import('~icons/lucide/chevron-right')['default']
-    LucidePlus: typeof import('~icons/lucide/plus')['default']
     LucideStar: typeof import('~icons/lucide/star')['default']
     LucideX: typeof import('~icons/lucide/x')['default']
     MappingListTable: typeof import('./src/components/Settings/Raven/MappingListTable.vue')['default']
