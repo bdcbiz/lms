@@ -127,6 +127,10 @@ def chapter_has_permission(doc, ptype="read", user=None) -> bool:
 	"""Single-document counterpart of :func:`chapter_query_conditions`: the
 	``LMS Course`` rule applied to ``doc.course``. Author is checked first so a
 	Moderator keeps access to a chapter whose course is gone."""
+	from lms.lms import studio_agent_profile as agent_profile
+	agent_verdict = agent_profile.permission(doc, ptype, user)
+	if agent_verdict is not None:
+		return agent_verdict
 	course = doc.get("course")
 	if not course:
 		# A new row defers to validate()'s mandatory check; a saved one is denied
@@ -155,6 +159,10 @@ def chapter_has_permission(doc, ptype="read", user=None) -> bool:
 def chapter_query_conditions(user=None) -> str:
 	"""List-read counterpart of :func:`chapter_has_permission`'s read branch, as SQL.
 	A chapter whose course row is gone matches nothing."""
+	from lms.lms import studio_agent_profile as agent_profile
+	agent_verdict = agent_profile.query("Course Chapter", user)
+	if agent_verdict is not None:
+		return agent_verdict
 	condition = _course_read_condition(user)
 	if not condition:
 		return ""
