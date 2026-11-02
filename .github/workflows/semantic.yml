@@ -1,9 +1,11 @@
 name: Semantic Pull Request
 
 on:
-  push:
-    branches: [ main ]
   pull_request: {}
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   # This workflow contains a single job called "build"
@@ -13,7 +15,7 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-
-      - uses: zeke/semantic-pull-requests@main
+      # Validate metadata only: no checkout or execution of pull request code.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
