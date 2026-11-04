@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class TestStudioAgentProfile(unittest.TestCase):
 	def setUp(self):
 		self.frappe = SimpleNamespace(
+			PermissionError=PermissionError,
 			session=SimpleNamespace(user="agent"),
 			get_roles=lambda _: ["Studio Agent"],
 			get_installed_apps=lambda: [],
@@ -31,11 +32,13 @@ class TestStudioAgentProfile(unittest.TestCase):
 
 	def test_no_hub_or_profile_means_no_agent_access(self):
 		f, m = self.frappe, self.bridge
-		self.assertIs(m.permission({"doctype": "Course Lesson"}, "read"), False)
+		with self.assertRaises(PermissionError):
+			m.permission({"doctype": "Course Lesson"}, "read")
 		self.assertEqual(m.query("Course Chapter"), "0=1")
 		f.get_installed_apps = lambda: ["edu_hub"]
 		with patch.object(m, "load_profile", return_value=None):
-			self.assertIs(m.permission({"doctype": "Course Lesson"}, "read"), False)
+			with self.assertRaises(PermissionError):
+				m.permission({"doctype": "Course Lesson"}, "read")
 
 	def test_normal_users_and_automatic_admin_keep_native_path(self):
 		f, m = self.frappe, self.bridge
@@ -51,12 +54,15 @@ class TestStudioAgentProfile(unittest.TestCase):
 		f.get_installed_apps = lambda: ["edu_hub"]
 		profile = SimpleNamespace(
 			permission=lambda doc, ptype, user: doc.get("name") == "L" and ptype == "read",
+			native_permission=lambda doc, ptype, user: doc.get("name") == "L" and ptype == "read",
 			query=lambda dt, user: "assigned_" + dt,
 		)
 		with patch.object(m, "load_profile", return_value=profile):
 			self.assertTrue(m.permission({"name": "L"}, "read"))
-			self.assertFalse(m.permission({"name": "OTHER"}, "read"))
-			self.assertFalse(m.permission({"name": "L"}, "write"))
+			with self.assertRaises(PermissionError):
+				m.permission({"name": "OTHER"}, "read")
+			with self.assertRaises(PermissionError):
+				m.permission({"name": "L"}, "write")
 			self.assertEqual(m.query("Course Lesson"), "assigned_Course Lesson")
 
 	def test_native_profile_is_read_only_without_custom_permissions(self):
@@ -66,3 +72,28 @@ class TestStudioAgentProfile(unittest.TestCase):
 				[r for r in d["permissions"] if r["role"] == "Studio Agent"],
 				[{"read": 1, "role": "Studio Agent"}],
 			)
+
+	def test_missing_native_guard_cannot_fall_back_to_a_docshare(self):
+		with patch.object(
+			self.bridge, "load_profile", return_value=SimpleNamespace(permission=lambda *a: True)
+		):
+			with self.assertRaises(PermissionError):
+				self.bridge.permission({"doctype": "Course Lesson"}, "read")
+
+	def test_native_denial_and_write_denial_cannot_fall_back_to_a_docshare(self):
+		profile = SimpleNamespace(permission=lambda *a: False, native_permission=lambda *a: False)
+		with patch.object(self.bridge, "load_profile", return_value=profile):
+			for mode in ("read", "write"):
+				with self.subTest(mode=mode), self.assertRaises(PermissionError):
+					self.bridge.permission({"doctype": "Course Lesson"}, mode)
+
+	def test_only_native_hard_guard_is_used_for_an_allowed_read(self):
+		calls = []
+		profile = SimpleNamespace(
+			permission=lambda *a: self.fail("Boolean guard permits DocShare fallback"),
+			native_permission=lambda *a: calls.append(a) or True,
+		)
+		with patch.object(self.bridge, "load_profile", return_value=profile):
+			doc = {"doctype": "Course Lesson", "name": "L"}
+			self.assertTrue(self.bridge.permission(doc, "read", "agent"))
+			self.assertEqual(calls, [(doc, "read", "agent")])
