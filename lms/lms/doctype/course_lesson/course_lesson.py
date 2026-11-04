@@ -112,6 +112,11 @@ def cleanup_lesson_backreferences(lesson: str):
 
 
 def has_permission(doc, ptype="read", user=None):
+	from lms.lms import studio_agent_profile as agent_profile
+
+	agent_verdict = agent_profile.permission(doc, ptype, user)
+	if agent_verdict is not None:
+		return agent_verdict
 	user = user or frappe.session.user
 	if ptype not in ("read", "select", "print"):
 		# Authoring (create/write/delete): mirror sibling LMS hooks. Moderators
@@ -135,6 +140,11 @@ def get_permission_query_conditions(user=None):
 	Deliberately NOT widened to all Course Creators — the read gate is per-course,
 	and widening it here would open the media boundary the doc read protects.
 	"""
+	from lms.lms import studio_agent_profile as agent_profile
+
+	agent_verdict = agent_profile.query("Course Lesson", user)
+	if agent_verdict is not None:
+		return agent_verdict
 	user = user or frappe.session.user
 	if user == "Administrator":
 		return ""
