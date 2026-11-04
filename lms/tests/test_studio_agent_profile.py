@@ -34,7 +34,8 @@ class TestStudioAgentProfile(unittest.TestCase):
 		f, m = self.frappe, self.bridge
 		with self.assertRaises(PermissionError):
 			m.permission({"doctype": "Course Lesson"}, "read")
-		self.assertEqual(m.query("Course Chapter"), "0=1")
+		with self.assertRaises(PermissionError):
+			m.query("Course Chapter")
 		f.get_installed_apps = lambda: ["edu_hub"]
 		with patch.object(m, "load_profile", return_value=None):
 			with self.assertRaises(PermissionError):
@@ -56,6 +57,7 @@ class TestStudioAgentProfile(unittest.TestCase):
 			permission=lambda doc, ptype, user: doc.get("name") == "L" and ptype == "read",
 			native_permission=lambda doc, ptype, user: doc.get("name") == "L" and ptype == "read",
 			query=lambda dt, user: "assigned_" + dt,
+			native_query=lambda dt, user: "assigned_" + dt,
 		)
 		with patch.object(m, "load_profile", return_value=profile):
 			self.assertTrue(m.permission({"name": "L"}, "read"))
@@ -97,3 +99,19 @@ class TestStudioAgentProfile(unittest.TestCase):
 			doc = {"doctype": "Course Lesson", "name": "L"}
 			self.assertTrue(self.bridge.permission(doc, "read", "agent"))
 			self.assertEqual(calls, [(doc, "read", "agent")])
+
+	def test_query_without_native_guard_cannot_fall_back_to_a_docshare(self):
+		profile = SimpleNamespace(query=lambda *a: "0=1")
+		with (
+			patch.object(self.bridge, "load_profile", return_value=profile),
+			self.assertRaises(PermissionError),
+		):
+			self.bridge.query("Course Lesson", "agent")
+
+	def test_query_only_uses_the_native_hard_guard(self):
+		profile = SimpleNamespace(
+			query=lambda *a: self.fail("SQL alone may be ORed with a share"),
+			native_query=lambda dt, user: "bounded_native_query",
+		)
+		with patch.object(self.bridge, "load_profile", return_value=profile):
+			self.assertEqual(self.bridge.query("Course Lesson", "agent"), "bounded_native_query")

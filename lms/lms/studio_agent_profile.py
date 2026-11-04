@@ -42,4 +42,7 @@ def query(doctype, user=None):
 	if not is_agent(user):
 		return None
 	profile = load_profile()
-	return profile.query(doctype, user) if profile else "0=1"
+	guard = getattr(profile, "native_query", None)
+	if not callable(guard):
+		raise frappe.PermissionError("Studio assignment or document permission denied")
+	return guard(doctype, user)
