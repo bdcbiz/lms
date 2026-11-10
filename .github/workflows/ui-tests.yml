@@ -102,6 +102,9 @@ jobs:
           cd ~/frappe-bench/
           bench --site lms.test execute frappe.utils.install.complete_setup_wizard
           bench --site lms.test execute frappe.tests.ui_test_helpers.create_test_user
+          # Frappe's synthetic user receives ALL roles. Keep the browser suite
+          # on the ordinary editor path; mixed Studio Agents are read-only.
+          bench --site lms.test execute lms.tests.ui_setup.prepare_browser_test_user
           bench --site lms.test set-password frappe@example.com admin
           bench --site lms.test execute lms.lms.utils.persona_captured
 

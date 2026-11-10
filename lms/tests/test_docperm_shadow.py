@@ -168,11 +168,15 @@ class TestDocPermShadow(IntegrationTestCase):
 		self.assertIn("LMS Course", stdout.getvalue())
 
 	def test_the_alert_stays_quiet_when_nothing_is_shadowed(self):
-		errors_before = frappe.db.count("Error Log")
+		# Use the native DocType query; do not assume a backing MariaDB table.
+		# The complete identity set also detects replacement of an existing row.
+		errors_before = frappe.get_all("Error Log", pluck="name", order_by="name", limit_page_length=0)
 
 		stdout = io.StringIO()
 		with redirect_stdout(stdout):
 			warn_about_shadowed_permlevels()
 
-		self.assertEqual(frappe.db.count("Error Log"), errors_before)
+		self.assertEqual(
+			frappe.get_all("Error Log", pluck="name", order_by="name", limit_page_length=0), errors_before
+		)
 		self.assertEqual(stdout.getvalue(), "")

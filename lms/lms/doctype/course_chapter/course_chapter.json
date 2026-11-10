@@ -186,6 +186,10 @@
    "read": 1,
    "role": "Moderator",
    "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Studio Agent"
   }
  ],
  "row_format": "Dynamic",

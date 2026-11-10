@@ -109,6 +109,11 @@ jobs:
           git -C "$GITHUB_WORKSPACE" update-ref refs/heads/ci-pr-head "$PR_HEAD_SHA"
           bench get-app --skip-assets --branch v2.0.0 lms "${GITHUB_WORKSPACE}"
 
+          # v2.0.0 imports pkg_resources; current setuptools removed it.
+          # Pin only this disposable oldest-rung environment, not production.
+          "$PY" -m pip install 'setuptools==80.9.0'
+          "$PY" -c 'import pkg_resources'
+
           # bench init clones frappe and payments with their remote named upstream.
           # Keep LMS upstream pointed at the canonical repository for stable rungs,
           # and use the checked-out workspace for the exact pull-request head.
